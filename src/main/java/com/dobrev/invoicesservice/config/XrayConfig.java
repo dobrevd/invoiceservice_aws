@@ -1,4 +1,4 @@
-package com.dobrev.invoiceservice.config;
+package com.dobrev.invoicesservice.config;
 
 import com.amazonaws.xray.AWSXRay;
 import com.amazonaws.xray.AWSXRayRecorder;

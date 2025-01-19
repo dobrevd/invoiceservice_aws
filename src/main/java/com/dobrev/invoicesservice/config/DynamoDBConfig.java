@@ -1,4 +1,4 @@
-package com.dobrev.invoiceservice.config;
+package com.dobrev.invoicesservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

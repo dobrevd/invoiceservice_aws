@@ -1,4 +1,4 @@
-package com.dobrev.invoiceservice;
+package com.dobrev.invoicesservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,4 +1,4 @@
-package com.dobrev.invoiceservice.config;
+package com.dobrev.invoicesservice.config;
 
 import com.amazonaws.xray.entities.Subsegment;
 import com.amazonaws.xray.spring.aop.BaseAbstractXRayInterceptor;

@@ -1,4 +1,4 @@
-package com.dobrev.invoiceservice;
+package com.dobrev.invoicesservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

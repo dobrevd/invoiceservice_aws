@@ -21,6 +21,10 @@ ext {
 	lombokVersion = '1.18.30'
 	mapstructVersion = '1.5.5.Final'
 	awsSdkBomVersion = '2.29.37'
+	awsXrayRecorderSdkSpring = '2.18.2'
+	awsXrayRecorderSdkAwsSdk = '2.18.2'
+	awsLambdaJavaEventsVersion = '3.14.0'
+	awsLambdaJavaSerialization = '1.1.5'
 }
 
 dependencies {
@@ -29,13 +33,16 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-log4j2'
 
-	// AWS SDK and X-Ray
+	// AWS SDK, S3 and X-Ray
 	implementation platform("software.amazon.awssdk:bom:${awsSdkBomVersion}")
 	implementation 'software.amazon.awssdk:dynamodb'
 	implementation 'software.amazon.awssdk:dynamodb-enhanced'
 	implementation 'software.amazon.awssdk:sqs'
-	implementation 'com.amazonaws:aws-xray-recorder-sdk-spring:2.18.2'
-	implementation 'com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:2.18.2'
+	implementation "com.amazonaws:aws-xray-recorder-sdk-spring:${awsXrayRecorderSdkSpring}"
+	implementation "com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:${awsXrayRecorderSdkAwsSdk}"
+	implementation 'software.amazon.awssdk:s3'
+	implementation "com.amazonaws:aws-lambda-java-events:${awsLambdaJavaEventsVersion}"
+	implementation "com.amazonaws:aws-lambda-java-serialization:${awsLambdaJavaSerialization}"
 
 	// Lombok and MapStruct
 	implementation "org.projectlombok:lombok:${lombokVersion}"
