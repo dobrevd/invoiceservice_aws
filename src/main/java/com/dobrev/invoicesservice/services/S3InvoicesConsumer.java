@@ -4,8 +4,13 @@ import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotificatio
 import com.amazonaws.services.lambda.runtime.serialization.PojoSerializer;
 import com.amazonaws.services.lambda.runtime.serialization.events.LambdaEventSerializers;
 import com.dobrev.invoicesservice.enums.InvoiceFileTransactionStatus;
+import com.dobrev.invoicesservice.enums.InvoiceTransactionStatus;
+import com.dobrev.invoicesservice.invoices.dto.InvoiceFileDto;
 import com.dobrev.invoicesservice.models.InvoiceFileTransaction;
+import com.dobrev.invoicesservice.repositories.InvoiceTransactionsRepository;
 import com.dobrev.invoicesservice.repositories.InvoicesFileTransactionsRepository;
+import com.dobrev.invoicesservice.repositories.InvoicesRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
@@ -29,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,16 +43,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class S3InvoicesConsumer {
     private final S3AsyncClient s3AsyncClient;
     private final InvoicesFileTransactionsRepository invoicesFileTransactionsRepository;
+    private final InvoiceTransactionsRepository invoiceTransactionsRepository;
+    private final InvoicesRepository invoicesRepository;
     private final ObjectMapper objectMapper;
     private final SqsAsyncClient sqsAsyncClient;
     @Value("${aws.sqs.queue.invoice.events.url}")
     private final String invoiceEventsQueueUrl;
     private final ReceiveMessageRequest receiveMessageRequest;
 
-    public S3InvoicesConsumer(S3AsyncClient s3AsyncClient, InvoicesFileTransactionsRepository invoicesFileTransactionsRepository,
-            ObjectMapper objectMapper, SqsAsyncClient sqsAsyncClient, String invoiceEventsQueueUrl) {
+    public S3InvoicesConsumer(S3AsyncClient s3AsyncClient, InvoicesFileTransactionsRepository invoicesFileTransactionsRepository, InvoiceTransactionsRepository invoiceTransactionsRepository, InvoicesRepository invoicesRepository,
+                              ObjectMapper objectMapper, SqsAsyncClient sqsAsyncClient, String invoiceEventsQueueUrl) {
         this.s3AsyncClient = s3AsyncClient;
         this.invoicesFileTransactionsRepository = invoicesFileTransactionsRepository;
+        this.invoiceTransactionsRepository = invoiceTransactionsRepository;
+        this.invoicesRepository = invoicesRepository;
         this.objectMapper = objectMapper;
         this.sqsAsyncClient = sqsAsyncClient;
         this.invoiceEventsQueueUrl = invoiceEventsQueueUrl;
@@ -176,4 +186,38 @@ public class S3InvoicesConsumer {
         log.info("Messages deleted...");
     }
 
+    private CompletableFuture<Boolean> processInvoice(String line, InvoiceFileTransaction invoiceFileTransaction)
+            throws JsonProcessingException, JsonProcessingException {
+        InvoiceTransactionStatus invoiceTransactionStatus;
+        String invoiceFileTransactionId = invoiceFileTransaction.getSk();
+        log.info("Persisting the invoice...");
+
+        String invoiceTransactionId = UUID.randomUUID().toString();
+        InvoiceFileDto invoiceFileDto = objectMapper.readValue(line, InvoiceFileDto.class);
+        if (invoiceFileDto.products().isEmpty()) {
+            log.error("Invoice import failed - empty products list");
+            invoiceTransactionStatus = InvoiceTransactionStatus.EMPTY_PRODUCTS_LIST;
+        } else {
+            invoiceTransactionStatus = InvoiceTransactionStatus.OK;
+        }
+
+        var createInvoiceFuture = createInvoiceFuture(invoiceFileDto, invoiceTransactionId, invoiceFileTransactionId);
+        var createInvoiceTransactionFuture = createInvoiceTransactionFuture(invoiceFileDto, invoiceTransactionId, invoiceFileTransactionId, invoiceTransactionStatus);
+        CompletableFuture.allOf(createInvoiceFuture, createInvoiceTransactionFuture).join();
+
+        log.info("Invoice persisted");
+        return CompletableFuture.supplyAsync(() -> true);
+    }
+
+    private CompletableFuture<Void> createInvoiceTransactionFuture(InvoiceFileDto invoiceFileDto, String invoiceTransactionId, String invoiceFileTransactionId, InvoiceTransactionStatus invoiceTransactionStatus) {
+        return invoiceTransactionsRepository
+                .createInvoiceTransaction(invoiceFileDto.customerEmail(),
+                        invoiceFileDto.invoiceNumber(), invoiceTransactionId,
+                        invoiceFileTransactionId, invoiceTransactionStatus);
+    }
+
+    private CompletableFuture<Void> createInvoiceFuture(InvoiceFileDto invoiceFileDto, String invoiceTransactionId, String invoiceFileTransactionId) {
+        return invoicesRepository
+                .createInvoice(invoiceFileDto, invoiceTransactionId, invoiceFileTransactionId);
+    }
 }
